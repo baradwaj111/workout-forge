@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Goal {
+  STRENGTH
+  MUSCLE
+  FAT_LOSS
+  ENDURANCE
+  GENERAL
+  ATHLETIC
+}
+
+enum Experience {
+  NEW
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum TrainingLocation {
+  FULL_GYM
+  HOME_DUMBBELLS
+  MINIMAL
+}
+
+enum Units {
+  KG
+  LB
+}
+
+enum FuelLevel {
+  UNDERFUELED
+  LIGHT
+  FED
+  HEAVY
+}
+
+enum WorkoutStatus {
+  PLANNED
+  COMPLETED
+  SKIPPED
+}
+
+enum PerceivedDifficulty {
+  EASY
+  RIGHT
+  HARD
+}
+
+model Profile {
+  id               Int              @id @default(1)
+  goal             Goal
+  experience       Experience
+  trainingLocation TrainingLocation
+  equipmentNote    String?
+  daysPerWeek      Int
+  focusNote        String?
+  avoidNote        String?
+  units            Units            @default(KG)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model CheckIn {
+  id               Int           @id @default(autoincrement())
+  date             DateTime      @db.Date
+  energy           Int
+  hydration        Int
+  painAreas        String[]
+  painNote         String?
+  fuelLevel        FuelLevel
+  mealNote         String?
+  minutesAvailable Int
+  sleepStart       String?
+  sleepEnd         String?
+  waterGlasses     Int?
+  workout          Workout?
+  createdAt        DateTime      @default(now())
+
+  @@unique([date])
+}
+
+model Workout {
+  id                  Int                  @id @default(autoincrement())
+  date                DateTime             @db.Date
+  title               String
+  focus               String
+  estMinutes          Int
+  readinessScore      Int
+  readinessLabel      String
+  adapted             String
+  warmup              Json
+  blocks              Json
+  cooldown            Json
+  coachNote           String
+  fuelNote            String
+  rawModelOutput      String
+  status              WorkoutStatus        @default(PLANNED)
+  perceivedDifficulty PerceivedDifficulty?
+  sessionNote         String?
+  checkIn             CheckIn              @relation(fields: [checkInId], references: [id])
+  checkInId           Int                  @unique
+  exerciseLogs        ExerciseLog[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model DailyLog {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @db.Date
+  sleepStart   String?
+  sleepEnd     String?
+  waterGlasses Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([date])
+}
+
+model ExerciseLog {
+  id          Int      @id @default(autoincrement())
+  workoutId   Int
+  workout     Workout  @relation(fields: [workoutId], references: [id])
+  name        String
+  muscleGroup String
+  sets        Int
+  reps        String
+  load        Float?
+  rpe         Float?
+  createdAt   DateTime @default(now())
+}
