@@ -105,7 +105,7 @@ Lift progression (last two logged sessions):
 ${progressionLines.join("\n") || "  No data — no load history yet"}`;
 }
 
-function buildUserMessage(profile: Profile, checkIn: CheckIn, recentWorkouts: RecentWorkout[], dailyLog?: DailyLog | null): string {
+function buildUserMessage(profile: Profile, checkIn: CheckIn, recentWorkouts: RecentWorkout[], dailyLog?: DailyLog | null, userFeedback?: string): string {
   const goalMap: Record<string, string> = {
     STRENGTH: "Maximum strength", MUSCLE: "Muscle hypertrophy",
     FAT_LOSS: "Fat loss with muscle retention", ENDURANCE: "Cardiovascular endurance",
@@ -151,6 +151,10 @@ function buildUserMessage(profile: Profile, checkIn: CheckIn, recentWorkouts: Re
 
   const dateStr = checkIn.date instanceof Date ? checkIn.date.toISOString().slice(0, 10) : String(checkIn.date).slice(0, 10);
 
+  const regenSection = userFeedback
+    ? `\n== REGENERATION REQUEST ==\nThe client reviewed the generated plan and asked for a revision. Their feedback:\n"${userFeedback}"\nGenerate a meaningfully different session that directly addresses this feedback while respecting all constraints above.\n`
+    : "";
+
   return `== CLIENT PROFILE ==
 Goal: ${goalMap[profile.goal] || profile.goal}
 Experience: ${profile.experience}
@@ -178,7 +182,7 @@ ${historyLines.length > 0 ? historyLines.join("\n") : "No history yet — this i
 
 Generate today's session now. Be specific about load suggestions based on history (estimate if no history). Ensure variety from recent sessions.
 
-${computeAnalytics(recentWorkouts)}`;
+${computeAnalytics(recentWorkouts)}${regenSection}`;
 }
 
 async function callModel(userMessage: string): Promise<WorkoutOutput> {
@@ -213,9 +217,10 @@ export async function generateWorkout(
   profile: Profile,
   recentWorkouts: RecentWorkout[],
   checkIn: CheckIn,
-  dailyLog?: DailyLog | null
+  dailyLog?: DailyLog | null,
+  userFeedback?: string
 ): Promise<{ output: WorkoutOutput; rawOutput: string }> {
-  const userMessage = buildUserMessage(profile, checkIn, recentWorkouts, dailyLog);
+  const userMessage = buildUserMessage(profile, checkIn, recentWorkouts, dailyLog, userFeedback);
 
   try {
     const output = await callModel(userMessage);

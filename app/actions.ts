@@ -196,6 +196,71 @@ export async function completeWorkout(formData: FormData): Promise<void> {
   revalidatePath("/history");
 }
 
+export type RegenerateState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | { status: "success" };
+
+export async function regenerateWorkout(
+  _prev: RegenerateState,
+  formData: FormData
+): Promise<RegenerateState> {
+  const workoutId = parseInt(formData.get("workoutId") as string, 10);
+  const feedback = (formData.get("feedback") as string || "").trim();
+
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    include: { checkIn: true },
+  });
+  if (!workout || workout.status !== "PLANNED") {
+    return { status: "error", message: "Can only regenerate a planned workout." };
+  }
+
+  const profile = await prisma.profile.findUnique({ where: { id: 1 } });
+  if (!profile) return { status: "error", message: "Profile not found." };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [recentWorkouts, dailyLog] = await Promise.all([
+    prisma.workout.findMany({
+      where: { id: { not: workoutId } },
+      orderBy: { date: "desc" },
+      take: 7,
+      include: { exerciseLogs: true, checkIn: true },
+    }),
+    prisma.dailyLog.findUnique({ where: { date: today } }),
+  ]);
+
+  try {
+    const { output, rawOutput } = await generateWorkout(profile, recentWorkouts, workout.checkIn, dailyLog, feedback || undefined);
+
+    await prisma.workout.update({
+      where: { id: workoutId },
+      data: {
+        title: output.title,
+        focus: output.focus,
+        estMinutes: output.estMinutes,
+        readinessScore: output.readiness.score,
+        readinessLabel: output.readiness.label,
+        adapted: output.adapted,
+        warmup: output.warmup,
+        blocks: output.blocks,
+        cooldown: output.cooldown,
+        coachNote: output.coachNote,
+        fuelNote: output.fuel,
+        rawModelOutput: rawOutput,
+      },
+    });
+
+    revalidatePath("/today");
+    return { status: "success" };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return { status: "error", message: `Regeneration failed: ${msg}` };
+  }
+}
+
 export async function skipWorkout(workoutId: number): Promise<void> {
   await prisma.workout.update({
     where: { id: workoutId },

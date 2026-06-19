@@ -2,12 +2,13 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { completeWorkout, skipWorkout } from "@/app/actions";
+import { useActionState } from "react";
+import { completeWorkout, skipWorkout, regenerateWorkout, type RegenerateState } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import ReadinessGauge from "@/components/ReadinessGauge";
-import { Clock, CheckCircle2, SkipForward, ChevronDown, ChevronUp, ArrowLeftRight, Info } from "lucide-react";
+import { Clock, CheckCircle2, SkipForward, ChevronDown, ChevronUp, ArrowLeftRight, Info, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Workout } from "@prisma/client";
@@ -91,6 +92,11 @@ export default function WorkoutPlan({ workout }: { workout: Workout }) {
   const [difficulty, setDifficulty] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [skipping, setSkipping] = useState(false);
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [regenState, regenAction, regenPending] = useActionState<RegenerateState, FormData>(
+    regenerateWorkout,
+    { status: "idle" }
+  );
 
   const blocks = workout.blocks as Block[];
   const warmup = workout.warmup as string[];
@@ -192,6 +198,57 @@ export default function WorkoutPlan({ workout }: { workout: Workout }) {
           <p className="text-sm text-muted-foreground leading-relaxed">{workout.fuelNote}</p>
         </div>
       </div>
+
+      {/* Regenerate */}
+      {!isDone && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+          <button
+            type="button"
+            onClick={() => setRegenOpen((o) => !o)}
+            className="w-full flex items-center justify-between rounded-2xl border border-border bg-card card-elevated px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-primary" />
+              Not feeling this plan?
+            </span>
+            {regenOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          <AnimatePresence>
+            {regenOpen && (
+              <motion.form
+                action={regenAction}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-b-2xl border border-t-0 border-border bg-card px-4 pb-4 pt-3 space-y-3">
+                  <input type="hidden" name="workoutId" value={workout.id} />
+                  <Textarea
+                    name="feedback"
+                    placeholder="Tell the coach why — e.g. 'my knees are sore today', 'I only have 30 min', 'too much chest, add more back'…"
+                    className="resize-none text-sm"
+                    rows={3}
+                  />
+                  {regenState.status === "error" && (
+                    <p className="text-xs text-destructive">{regenState.message}</p>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="w-full h-10 rounded-xl font-semibold"
+                    disabled={regenPending}
+                  >
+                    <RefreshCw className={cn("mr-1.5 h-4 w-4", regenPending && "animate-spin")} />
+                    {regenPending ? "Generating…" : "Regenerate workout"}
+                  </Button>
+                </div>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
       {/* Completion */}
       {!isDone && (
