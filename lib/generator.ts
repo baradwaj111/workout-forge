@@ -16,9 +16,12 @@ Hard rules:
   Never default to an isolated split (pure upper, pure lower, pure arms) unless daysPerWeek ≥ 5 AND goal is MUSCLE or STRENGTH with explicit justification.
 - EXERCISE COUNT — hard cap: 4 to 6 working exercises per session. 7 is the absolute maximum and only if minutesAvailable ≥ 75. More exercises is not better; depth (sets, load, quality) beats breadth. Warmup drills and cooldown stretches are NOT counted toward this limit.
 - Build on history: rotate muscle emphasis across sessions; nudge progression vs the last similar session and the client's perceivedDifficulty feedback.
+- VARIETY — enforce all three layers every session:
+  1. Exercise rotation: Do NOT repeat any exercise that appears in the two most recent COMPLETED sessions (see analytics below). For cornerstone compounds (squat, deadlift, bench press, row) that must recur, change the implement or stance — barbell→dumbbell→machine→cable, conventional→sumo, flat→incline, etc.
+  2. Movement pattern rotation: vary which patterns lead the session. Cycle across: horizontal push, vertical push, horizontal pull, vertical pull, knee-dominant, hip-dominant, core/carry. No two consecutive sessions should open with the same pattern.
+  3. Rep range rotation: cycle strength (2–5), hypertrophy (6–12), and pump/endurance (13–20) across sessions. Do not run the same primary rep range two sessions in a row.
 - Fuel and hydration guidance is for performance and recovery only — supportive and qualitative (e.g. protein + carbs around training, hydrate). NEVER count calories, prescribe restriction, or comment on weight or body image.
 - Respect equipment, goal, experience, and minutesAvailable.
-- Keep it engaging and varied — rotate exercise selection — but never at the cost of safety or coherence.
 - If readiness is very low or pain is significant, prescribe a genuine recovery/mobility day or rest; that is a valid output.
 Return your answer ONLY by calling the provided tool. Keep every 'note' field under ~12 words.`;
 
@@ -92,6 +95,15 @@ function computeAnalytics(recentWorkouts: RecentWorkout[]): string {
   });
   const volumeLines = Object.entries(weeklyVolume).map(([m, s]) => `  ${m}: ${s} sets`);
 
+  const recentExerciseLines = recentWorkouts
+    .filter((w) => w.status === "COMPLETED")
+    .slice(0, 5)
+    .map((w) => {
+      const dateStr = new Date(w.date).toISOString().slice(0, 10);
+      const names = [...new Set(w.exerciseLogs.map((l) => l.name))].join(", ");
+      return `  ${dateStr}: ${names || "none logged"}`;
+    });
+
   return `== PRE-COMPUTED ANALYTICS ==
 Consecutive training days: ${consecutive}
 
@@ -102,7 +114,10 @@ Weekly volume (sets completed this week):
 ${volumeLines.join("\n") || "  No data"}
 
 Lift progression (last two logged sessions):
-${progressionLines.join("\n") || "  No data — no load history yet"}`;
+${progressionLines.join("\n") || "  No data — no load history yet"}
+
+Recent exercises by session (newest first — use this to enforce variety):
+${recentExerciseLines.join("\n") || "  No data"}`;
 }
 
 function buildUserMessage(profile: Profile, checkIn: CheckIn, recentWorkouts: RecentWorkout[], dailyLog?: DailyLog | null, userFeedback?: string): string {
