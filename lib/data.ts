@@ -43,3 +43,34 @@ export const getRecentWorkouts = cache(async () => {
     },
   });
 });
+
+export const getAnalyticsData = cache(async () => {
+  const since = new Date();
+  since.setDate(since.getDate() - 90);
+
+  const [workouts, dailyLogs] = await Promise.all([
+    prisma.workout.findMany({
+      where: { date: { gte: since } },
+      orderBy: { date: "asc" },
+      select: {
+        id: true,
+        date: true,
+        title: true,
+        status: true,
+        readinessScore: true,
+        estMinutes: true,
+        perceivedDifficulty: true,
+        exerciseLogs: {
+          select: { name: true, muscleGroup: true, sets: true, reps: true, load: true },
+        },
+      },
+    }),
+    prisma.dailyLog.findMany({
+      where: { date: { gte: new Date(Date.now() - 30 * 86400000) } },
+      orderBy: { date: "asc" },
+      select: { date: true, sleepStart: true, sleepEnd: true, waterGlasses: true },
+    }),
+  ]);
+
+  return { workouts, dailyLogs };
+});

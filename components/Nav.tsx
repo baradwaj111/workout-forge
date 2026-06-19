@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, History, Dumbbell } from "lucide-react";
+import { Flame, History, Dumbbell, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/today", label: "Today", icon: Dumbbell },
   { href: "/history", label: "History", icon: History },
+  { href: "/analytics", label: "Analytics", icon: BarChart2 },
 ];
 
 export default function Nav() {
